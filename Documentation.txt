@@ -1,0 +1,63 @@
+# List of Data Structures (decription of fields)
+
+struct Message contains 
+1. msg, which is the string 
+2. time_sent, which is a time_t denoting the time it was last sent
+3. dest_port, the port to which it was originally sent to.
+
+struct Table contains
+1. filled, a 64 bit int, denoting a bit array if a place in the table is filled or not
+2. msg_list, an array of struct Message's
+
+There are two tables, Unack_table which is the Unacknowledged Message Table, and Recv_table, which is the Received Message Table
+
+# List of all functions and behaviour
+
+int r_socket(int domain, int protocol)
+1. allocates space for the two tables
+2. opens the socket
+3. creates the threads
+
+int r_bind(int sockfd, struct sockaddr *my_addr, int addrlen)
+1. binds it to the port
+
+int r_sendto(int sockfd, const void *msg, int msg_len, unsigned int flags, const struct sockaddr *to, int to_len)
+1. this sends the msg and makes an entry in the Unack_table
+2. it isn't responsible for resending in case of failed transmissions
+
+int r_recvfrom(int sockfd, void *buf, int buf_len, unsigned int flags, struct sockaddr *from, int *from_len)
+1. This checks the Recv_table and returns whatever it gets and removes this entry
+2. If the Recv_table is empty, it sleeps for 2 seconds, then checks again, so it is a blocking call
+
+int find_empty_slot()
+1. It returns the first empty slot in the Table, by doing bitwise arithmetic on the Table->filled
+
+void *execute_thread_R(void *arg)
+1. It received message from the recvfrom call, decides if it's an ACK message or a Data Message
+2. If it's an ACK message, it removes the entry from the Unack_table table, if not removed already
+3. If it's a data message, puts it in the Recv_table and sends the ACK corresponding to it back.
+
+void *execute_thread_S(void *arg)
+1. It periodically checks the Unack_table and resends the messages whose sent_time was before 2*T units back
+
+int dropMesssage(float p)
+1. Generates a random number and returns 1/0, its output is used in execute_thread_R, where we drop messages based on this.
+
+void r_close(int sockfd)
+1. It waits for the threads to end, and deallocates the table space, and closes the underlying UDP connection.
+
+# Table with results for varying p values 
+
+| P    | Sent | Recevied |
+| ---- | ---- | -------- |
+| 0.05 | 26   | 27       |
+| 0.1  | 26   | 27       |
+| 0.15 | 26   | 31       |
+| 0.2  | 26   | 33       |
+| 0.25 | 26   | 35       |
+| 0.3  | 26   | 38       |
+| 0.35 | 26   |    38      |
+| 0.4  | 26   | 40 |
+| 0.45 | 26   | 41 |
+| 0.5  | 26   | 46 |
+
